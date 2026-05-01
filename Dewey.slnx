@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Dewey.Api/Dewey.Api.csproj" />
+    <Project Path="src/Dewey.Infra/Dewey.Infra.csproj" />
+    <Project Path="src/Dewey.Shared/Dewey.Shared.csproj" />
+    <Project Path="src/Dewey.Web/Dewey.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Dewey.Api.Tests/Dewey.Api.Tests.csproj" />
+    <Project Path="tests/Dewey.Web.Tests/Dewey.Web.Tests.csproj" />
+  </Folder>
+</Solution>

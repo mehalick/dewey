@@ -1,0 +1,82 @@
+name: build-and-deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  AWS_REGION: us-east-1
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore Dewey.slnx
+
+      - name: Build
+        run: dotnet build Dewey.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test Dewey.slnx --configuration Release --no-build --logger "trx;LogFileName=tests.trx"
+
+      - name: Publish API (AOT, linux-arm64)
+        run: |
+          dotnet publish src/Dewey.Api/Dewey.Api.csproj \
+            -c Release -r linux-arm64 --self-contained true \
+            -o artifacts/api
+
+      - name: Publish Web
+        run: |
+          dotnet publish src/Dewey.Web/Dewey.Web.csproj \
+            -c Release \
+            -o artifacts/web-publish
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dewey-artifacts
+          path: artifacts/
+
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dewey-artifacts
+          path: artifacts/
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install CDK
+        run: npm install -g aws-cdk@2
+
+      - name: CDK deploy
+        working-directory: src/Dewey.Infra
+        env:
+          DEWEY_API_PUBLISH_DIR: ${{ github.workspace }}/artifacts/api
+          DEWEY_WEB_PUBLISH_DIR: ${{ github.workspace }}/artifacts/web-publish/wwwroot
+        run: cdk deploy --all --require-approval never

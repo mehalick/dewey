@@ -1,0 +1,11 @@
+{
+  "profile": "",
+  "region": "",
+  "configuration": "Release",
+  "function-runtime": "provided.al2023",
+  "function-architecture": "arm64",
+  "function-memory-size": 512,
+  "function-timeout": 10,
+  "function-handler": "bootstrap",
+  "msbuild-parameters": "--self-contained true"
+}

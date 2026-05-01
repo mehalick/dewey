@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RollForward>Major</RollForward>
+    <RootNamespace>Dewey.Infra</RootNamespace>
+    <Nullable>disable</Nullable>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Amazon.CDK.Lib" Version="[2.248.0,3.0.0)" />
+    <PackageReference Include="Constructs" Version="10.*" />
+  </ItemGroup>
+
+</Project>
