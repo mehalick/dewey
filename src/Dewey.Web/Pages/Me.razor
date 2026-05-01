@@ -2,9 +2,9 @@
 @using System.Net.Http.Json
 @using Dewey.Shared.Contracts
 @using Dewey.Web.Auth
+@using Dewey.Web.Shared
 @inject HttpClient Http
 @inject AuthSession Session
-@inject NavigationManager Nav
 
 <PageTitle>Me - Dewey</PageTitle>
 
@@ -17,11 +17,11 @@
 }
 else if (_me is null && _error is null)
 {
-    <p>Loading…</p>
+    <Spinner Label="Loading profile…" />
 }
 else if (_error is not null)
 {
-    <div class="alert alert-danger">@_error</div>
+    <div class="alert alert-danger" role="alert">@_error</div>
 }
 else
 {
@@ -38,13 +38,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         if (!Session.IsSignedIn) return;
-        try
-        {
-            _me = await Http.GetFromJsonAsync<MeResponse>("api/me");
-        }
-        catch (Exception ex)
-        {
-            _error = ex.Message;
-        }
+        try { _me = await Http.GetFromJsonAsync<MeResponse>("api/me"); }
+        catch (Exception ex) { _error = Errors.Friendly(ex, "Couldn't load profile."); }
     }
 }

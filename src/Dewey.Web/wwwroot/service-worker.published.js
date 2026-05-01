@@ -38,13 +38,18 @@ async function onActivate(event) {
 }
 
 async function onFetch(event) {
+    const url = new URL(event.request.url);
+
+    // Never intercept API or cover requests — those are handled by the app's
+    // own ApiCache + Outbox layer (or served live from CloudFront for covers).
+    if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/covers/')) {
+        return fetch(event.request);
+    }
+
     let cachedResponse = null;
     if (event.request.method === 'GET') {
-        // For all navigation requests, try to serve index.html from cache,
-        // unless that request is for an offline resource.
-        // If you need some URLs to be server-rendered, edit the following check to exclude those URLs
         const shouldServeIndexHtml = event.request.mode === 'navigate'
-            && !manifestUrlList.some(url => url === event.request.url);
+            && !manifestUrlList.some(u => u === event.request.url);
 
         const request = shouldServeIndexHtml ? 'index.html' : event.request;
         const cache = await caches.open(cacheName);

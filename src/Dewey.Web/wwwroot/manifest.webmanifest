@@ -1,6 +1,6 @@
 {
-  "name": "Dewey.Web",
-  "short_name": "Dewey.Web",
+  "name": "Dewey",
+  "short_name": "Dewey",
   "id": "./",
   "start_url": "./",
   "display": "standalone",

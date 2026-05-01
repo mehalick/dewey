@@ -1,7 +1,7 @@
 @page "/book/{BookId}"
-@using System.Net.Http.Json
 @using Dewey.Shared.Contracts
 @using Dewey.Web.Offline
+@using Dewey.Web.Shared
 @inject HttpClient Http
 @inject NavigationManager Nav
 @inject ApiCache Cache
@@ -11,18 +11,18 @@
 
 @if (_book is null && _error is null)
 {
-    <p>Loading…</p>
+    <Spinner Label="Loading book…" />
 }
 else if (_error is not null)
 {
-    <div class="alert alert-danger">@_error</div>
+    <div class="alert alert-danger" role="alert">@_error</div>
 }
 else
 {
-    <div class="d-flex gap-3">
+    <div class="d-flex gap-3 flex-wrap">
         @if (!string.IsNullOrEmpty(_book!.CoverUrl))
         {
-            <img src="@_book.CoverUrl" alt="cover" style="width:160px; height:auto;" />
+            <img src="@_book.CoverUrl" alt="@($"Cover of {_book.Title}")" style="width:160px; height:auto;" />
         }
         <div class="flex-grow-1">
             <h1>@_book.Title</h1>
@@ -31,7 +31,7 @@ else
             {
                 <p>@_book.PageCount pages</p>
             }
-            <p>Progress: @_book.LatestProgressPct% — @_book.Status</p>
+            <p>Progress: <strong>@_book.LatestProgressPct%</strong> — @_book.Status</p>
             @if (_book.LatestSessionAt is not null)
             {
                 <p class="text-muted small">Last activity: @_book.LatestSessionAt</p>
@@ -41,11 +41,12 @@ else
 
     <hr />
 
-    <h3>Log a session</h3>
+    <h2 class="h4">Log a session</h2>
     <div class="row g-2 align-items-end mb-3" style="max-width:560px;">
         <div class="col-auto">
-            <label class="form-label">Progress %</label>
-            <input class="form-control" type="number" min="0" max="100" @bind="_progressPct" />
+            <label class="form-label" for="progress-pct">Progress %</label>
+            <input id="progress-pct" class="form-control" type="number" min="0" max="100"
+                   inputmode="numeric" @bind="_progressPct" />
         </div>
         <div class="col-auto">
             <button class="btn btn-success" @onclick="@(() => LogAsync("start"))" disabled="@_logging">Start</button>
@@ -59,7 +60,10 @@ else
     </div>
 
     <hr />
-    <button class="btn btn-outline-danger" @onclick="DeleteAsync" disabled="@_deleting">
+    <button class="btn btn-outline-danger"
+            @onclick="DeleteAsync"
+            disabled="@_deleting"
+            aria-label="@($"Remove {_book.Title} from library")">
         @(_deleting ? "Removing…" : "Remove from library")
     </button>
 }
@@ -81,7 +85,7 @@ else
             _book = await Cache.GetAsync<BookSummary>($"api/books/{BookId}");
             _progressPct = _book?.LatestProgressPct ?? 0;
         }
-        catch (Exception ex) { _error = ex.Message; }
+        catch (Exception ex) { _error = Errors.Friendly(ex, "Couldn't load this book."); }
     }
 
     private async Task LogAsync(string type)
@@ -94,12 +98,10 @@ else
                 Type: type,
                 ProgressPct: Math.Clamp(_progressPct, 0, 100),
                 OccurredAt: DateTimeOffset.UtcNow.ToString("O"));
-            // Always go through the outbox: enqueue then attempt immediate flush.
-            // Offline => stays queued, banner shows pending count.
             await Outbox.EnqueueAsync($"api/books/{BookId}/sessions", req);
             await LoadAsync();
         }
-        catch (Exception ex) { _error = ex.Message; }
+        catch (Exception ex) { _error = Errors.Friendly(ex, "Couldn't log that session."); }
         finally { _logging = false; }
     }
 
@@ -112,6 +114,6 @@ else
             res.EnsureSuccessStatusCode();
             Nav.NavigateTo("/library");
         }
-        catch (Exception ex) { _error = ex.Message; _deleting = false; }
+        catch (Exception ex) { _error = Errors.Friendly(ex, "Couldn't remove the book."); _deleting = false; }
     }
 }

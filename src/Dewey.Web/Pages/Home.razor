@@ -1,7 +1,29 @@
-﻿@page "/"
+@page "/"
+@using Dewey.Web.Auth
+@inject AuthSession Session
+@inject NavigationManager Nav
+@implements IDisposable
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Dewey</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="py-4">
+    <h1>Dewey</h1>
+    <p class="lead">Track what you're reading.</p>
 
-Welcome to your new app.
+    @if (Session.IsSignedIn)
+    {
+        <div class="d-flex gap-2 flex-wrap mt-3">
+            <a class="btn btn-primary" href="library">Open library</a>
+            <a class="btn btn-outline-primary" href="search">Add a book</a>
+        </div>
+    }
+    else
+    {
+        <a class="btn btn-primary mt-3" href="login">Sign in</a>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized() => Session.Changed += StateHasChanged;
+    public void Dispose() => Session.Changed -= StateHasChanged;
+}

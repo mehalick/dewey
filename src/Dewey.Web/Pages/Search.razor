@@ -2,6 +2,7 @@
 @using System.Net.Http.Json
 @using Dewey.Shared.Contracts
 @using Dewey.Web.Auth
+@using Dewey.Web.Shared
 @inject HttpClient Http
 @inject AuthSession Session
 @inject NavigationManager Nav
@@ -17,8 +18,10 @@
 }
 
 <EditForm Model="this" OnValidSubmit="DoSearchAsync" class="mb-3">
+    <label class="form-label" for="search-q">What are you looking for?</label>
     <div class="input-group">
-        <input class="form-control" placeholder="Title, author, ISBN…" @bind="_query" @bind:event="oninput" />
+        <input id="search-q" class="form-control" placeholder="Title, author, ISBN…"
+               autocomplete="off" @bind="_query" @bind:event="oninput" />
         <button class="btn btn-primary" type="submit" disabled="@_busy">
             @(_busy ? "Searching…" : "Search")
         </button>
@@ -27,10 +30,18 @@
 
 @if (_error is not null)
 {
-    <div class="alert alert-danger">@_error</div>
+    <div class="alert alert-danger" role="alert">@_error</div>
 }
 
-@if (_results is not null)
+@if (_busy && _results is null)
+{
+    <Spinner Label="Searching…" />
+}
+else if (_results is { Length: 0 })
+{
+    <p class="text-muted">No matches.</p>
+}
+else if (_results is not null)
 {
     <ul class="list-group">
         @foreach (var r in _results)
@@ -38,7 +49,7 @@
             <li class="list-group-item d-flex gap-3 align-items-start">
                 @if (!string.IsNullOrEmpty(r.CoverUrl))
                 {
-                    <img src="@r.CoverUrl" alt="cover" style="width:60px; height:auto;" />
+                    <img src="@r.CoverUrl" alt="@($"Cover of {r.Title}")" style="width:60px; height:auto;" />
                 }
                 <div class="flex-grow-1">
                     <div><strong>@r.Title</strong></div>
@@ -48,7 +59,10 @@
                         <div class="text-muted small">@r.PageCount pages</div>
                     }
                 </div>
-                <button class="btn btn-sm btn-outline-primary" @onclick="() => AddAsync(r)" disabled="@(_adding == r.GoogleVolumeId)">
+                <button class="btn btn-sm btn-outline-primary"
+                        @onclick="() => AddAsync(r)"
+                        disabled="@(_adding == r.GoogleVolumeId)"
+                        aria-label="@($"Add {r.Title} to library")">
                     @(_adding == r.GoogleVolumeId ? "Adding…" : "Add")
                 </button>
             </li>
@@ -71,7 +85,7 @@
         {
             _results = await Http.GetFromJsonAsync<BookSearchResult[]>($"api/books/search?q={Uri.EscapeDataString(_query)}");
         }
-        catch (Exception ex) { _error = ex.Message; }
+        catch (Exception ex) { _error = Errors.Friendly(ex, "Search failed."); }
         finally { _busy = false; }
     }
 
@@ -84,7 +98,7 @@
             res.EnsureSuccessStatusCode();
             Nav.NavigateTo("/library");
         }
-        catch (Exception ex) { _error = ex.Message; }
+        catch (Exception ex) { _error = Errors.Friendly(ex, "Couldn't add that book."); }
         finally { _adding = null; }
     }
 }

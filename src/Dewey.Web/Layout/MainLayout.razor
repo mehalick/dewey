@@ -11,17 +11,16 @@
 
     <main>
         <div class="top-row px-4 d-flex justify-content-between align-items-center">
-            <span>
+            <span aria-live="polite" aria-atomic="true">
                 @if (!Monitor.IsOnline)
                 {
                     <span class="badge bg-warning text-dark">Offline</span>
                 }
                 @if (Outbox.PendingCount > 0)
                 {
-                    <span class="badge bg-info ms-2">@Outbox.PendingCount pending</span>
+                    <span class="badge bg-info ms-2">@Outbox.PendingCount pending sync</span>
                 }
             </span>
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
         </div>
 
         <article class="content px-4">
