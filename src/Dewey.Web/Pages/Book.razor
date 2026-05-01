@@ -33,7 +33,25 @@ else
             {
                 <p class="text-muted small">Last activity: @_book.LatestSessionAt</p>
             }
-            <p class="text-muted small">Sessions UI lands in M4.</p>
+        </div>
+    </div>
+
+    <hr />
+
+    <h3>Log a session</h3>
+    <div class="row g-2 align-items-end mb-3" style="max-width:560px;">
+        <div class="col-auto">
+            <label class="form-label">Progress %</label>
+            <input class="form-control" type="number" min="0" max="100" @bind="_progressPct" />
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-success" @onclick="@(() => LogAsync("start"))" disabled="@_logging">Start</button>
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-warning" @onclick="@(() => LogAsync("stop"))" disabled="@_logging">Stop</button>
+        </div>
+        <div class="col-auto">
+            <a class="btn btn-link" href="@($"book/{BookId}/history")">View history</a>
         </div>
     </div>
 
@@ -48,11 +66,37 @@ else
     private BookSummary? _book;
     private string? _error;
     private bool _deleting;
+    private bool _logging;
+    private int _progressPct;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
     {
-        try { _book = await Http.GetFromJsonAsync<BookSummary>($"api/books/{BookId}"); }
+        try
+        {
+            _book = await Http.GetFromJsonAsync<BookSummary>($"api/books/{BookId}");
+            _progressPct = _book?.LatestProgressPct ?? 0;
+        }
         catch (Exception ex) { _error = ex.Message; }
+    }
+
+    private async Task LogAsync(string type)
+    {
+        _logging = true; _error = null;
+        try
+        {
+            var req = new LogSessionRequest(
+                SessionId: Guid.NewGuid().ToString("N"),
+                Type: type,
+                ProgressPct: Math.Clamp(_progressPct, 0, 100),
+                OccurredAt: DateTimeOffset.UtcNow.ToString("O"));
+            var res = await Http.PostAsJsonAsync($"api/books/{BookId}/sessions", req);
+            res.EnsureSuccessStatusCode();
+            await LoadAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _logging = false; }
     }
 
     private async Task DeleteAsync()

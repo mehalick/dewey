@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text.Json.Serialization;
 using Amazon.DynamoDBv2;
+using Amazon.DynamoDBv2.Model;
 using Amazon.Lambda.APIGatewayEvents;
 using Amazon.Lambda.AspNetCoreServer.Hosting;
 using Amazon.Lambda.Serialization.SystemTextJson;
@@ -45,6 +46,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddSingleton<IAmazonDynamoDB>(_ => new AmazonDynamoDBClient());
 builder.Services.AddSingleton<IAmazonS3>(_ => new AmazonS3Client());
 builder.Services.AddSingleton<BookRepository>();
+builder.Services.AddSingleton<SessionRepository>();
 builder.Services.AddSingleton<CoverCache>();
 builder.Services.AddHttpClient<GoogleBooksClient>();
 builder.Services.AddHttpClient("covers");
@@ -140,6 +142,34 @@ books.MapDelete("/{bookId}", async (
     return deleted ? Results.NoContent() : Results.NotFound();
 });
 
+books.MapPost("/{bookId}/sessions", async (
+    string bookId,
+    LogSessionRequest req,
+    ClaimsPrincipal user,
+    SessionRepository repo,
+    CancellationToken ct) =>
+{
+    var userId = user.FindFirstValue("sub")!;
+    try
+    {
+        await repo.LogAsync(userId, bookId, req, ct);
+        return Results.NoContent();
+    }
+    catch (ArgumentException ex) { return Results.BadRequest(ex.Message); }
+    catch (TransactionCanceledException) { return Results.Conflict(); }
+});
+
+books.MapGet("/{bookId}/sessions", async (
+    string bookId,
+    ClaimsPrincipal user,
+    SessionRepository repo,
+    CancellationToken ct) =>
+{
+    var userId = user.FindFirstValue("sub")!;
+    var events = await repo.ListAsync(userId, bookId, ct);
+    return Results.Ok(events);
+});
+
 app.Run();
 
 [JsonSerializable(typeof(HealthResponse))]
@@ -149,6 +179,9 @@ app.Run();
 [JsonSerializable(typeof(BookSummary))]
 [JsonSerializable(typeof(BookSummary[]))]
 [JsonSerializable(typeof(AddBookRequest))]
+[JsonSerializable(typeof(LogSessionRequest))]
+[JsonSerializable(typeof(SessionEvent))]
+[JsonSerializable(typeof(SessionEvent[]))]
 internal partial class ApiJsonContext : JsonSerializerContext;
 
 [JsonSerializable(typeof(APIGatewayHttpApiV2ProxyRequest))]

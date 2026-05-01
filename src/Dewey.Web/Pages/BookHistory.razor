@@ -1,0 +1,54 @@
+@page "/book/{BookId}/history"
+@using System.Net.Http.Json
+@using Dewey.Shared.Contracts
+@inject HttpClient Http
+
+<PageTitle>History - Dewey</PageTitle>
+
+<a href="@($"book/{BookId}")">&larr; Back to book</a>
+<h1>Reading history</h1>
+
+@if (_events is null && _error is null)
+{
+    <p>Loading…</p>
+}
+else if (_error is not null)
+{
+    <div class="alert alert-danger">@_error</div>
+}
+else if (_events!.Length == 0)
+{
+    <p>No sessions logged yet.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr><th>When</th><th>Type</th><th>Progress</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var e in _events)
+            {
+                <tr>
+                    <td>@e.OccurredAt</td>
+                    <td>
+                        <span class="badge @(e.Type == "start" ? "bg-success" : "bg-warning text-dark")">@e.Type</span>
+                    </td>
+                    <td>@e.ProgressPct%</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter] public string BookId { get; set; } = "";
+    private SessionEvent[]? _events;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _events = await Http.GetFromJsonAsync<SessionEvent[]>($"api/books/{BookId}/sessions"); }
+        catch (Exception ex) { _error = ex.Message; }
+    }
+}
