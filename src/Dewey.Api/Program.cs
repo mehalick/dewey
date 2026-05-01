@@ -6,6 +6,7 @@ using Amazon.Lambda.APIGatewayEvents;
 using Amazon.Lambda.AspNetCoreServer.Hosting;
 using Amazon.Lambda.Serialization.SystemTextJson;
 using Amazon.S3;
+using Dewey.Api;
 using Dewey.Api.Books;
 using Dewey.Shared.Contracts;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -57,6 +58,7 @@ builder.Services.AddAWSLambdaHosting(
 
 var app = builder.Build();
 
+app.UseRequestLogging();
 app.UseAuthentication();
 app.UseAuthorization();
 

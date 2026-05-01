@@ -1,6 +1,7 @@
 using Amazon.CDK;
 using Amazon.CDK.AWS.Cognito;
 using Amazon.CDK.AWS.Lambda;
+using Amazon.CDK.AWS.Logs;
 using Constructs;
 
 namespace Dewey.Infra.Constructs;
@@ -18,6 +19,12 @@ public sealed class AuthConstruct : Construct
             ? Code.FromAsset(triggersPath)
             : Code.FromInline("placeholder");
 
+        var triggersLogGroup = new Amazon.CDK.AWS.Logs.LogGroup(this, "TriggersLogGroup", new Amazon.CDK.AWS.Logs.LogGroupProps
+        {
+            Retention = RetentionDays.TWO_WEEKS,
+            RemovalPolicy = RemovalPolicy.DESTROY,
+        });
+
         TriggersFunction = new Function(this, "Triggers", new FunctionProps
         {
             Runtime = Runtime.PROVIDED_AL2023,
@@ -27,6 +34,10 @@ public sealed class AuthConstruct : Construct
             MemorySize = 256,
             Timeout = Duration.Seconds(5),
             Tracing = Tracing.ACTIVE,
+            LoggingFormat = LoggingFormat.JSON,
+            ApplicationLogLevelV2 = ApplicationLogLevel.INFO,
+            SystemLogLevelV2 = SystemLogLevel.INFO,
+            LogGroup = triggersLogGroup,
         });
 
         UserPool = new UserPool(this, "UserPool", new UserPoolProps

@@ -2,6 +2,7 @@ using Amazon.CDK;
 using Amazon.CDK.AWS.Cognito;
 using Amazon.CDK.AWS.DynamoDB;
 using Amazon.CDK.AWS.Lambda;
+using Amazon.CDK.AWS.Logs;
 using Amazon.CDK.AWS.S3;
 using Constructs;
 
@@ -31,6 +32,12 @@ public sealed class ApiConstruct : Construct
             ? Code.FromAsset(codePath)
             : Code.FromInline("placeholder");
 
+        var logGroup = new Amazon.CDK.AWS.Logs.LogGroup(this, "ApiLogGroup", new Amazon.CDK.AWS.Logs.LogGroupProps
+        {
+            Retention = Amazon.CDK.AWS.Logs.RetentionDays.TWO_WEEKS,
+            RemovalPolicy = RemovalPolicy.DESTROY,
+        });
+
         Function = new Function(this, "Handler", new FunctionProps
         {
             Runtime = Runtime.PROVIDED_AL2023,
@@ -40,6 +47,10 @@ public sealed class ApiConstruct : Construct
             MemorySize = 512,
             Timeout = Duration.Seconds(10),
             Tracing = Tracing.ACTIVE,
+            LoggingFormat = LoggingFormat.JSON,
+            ApplicationLogLevelV2 = ApplicationLogLevel.INFO,
+            SystemLogLevelV2 = SystemLogLevel.INFO,
+            LogGroup = logGroup,
             Environment = new System.Collections.Generic.Dictionary<string, string>
             {
                 ["DEWEY_USER_POOL_ID"] = props.UserPool.UserPoolId,

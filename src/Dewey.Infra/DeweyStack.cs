@@ -20,7 +20,7 @@ public sealed class DeweyStack : Stack
             UserPool = auth.UserPool,
             UserPoolClient = auth.UserPoolClient,
         });
-        new WebConstruct(this, "Web", new WebConstructProps
+        var web = new WebConstruct(this, "Web", new WebConstructProps
         {
             ApiFunction = api.Function,
             CoversBucket = data.CoversBucket,
@@ -30,6 +30,11 @@ public sealed class DeweyStack : Stack
         new ObservabilityConstruct(this, "Observability", new ObservabilityConstructProps
         {
             ApiFunction = api.Function,
+            AuthTriggersFunction = auth.TriggersFunction,
+            UsersTable = data.UsersTable,
+            BooksTable = data.BooksTable,
+            SessionsTable = data.SessionsTable,
+            Distribution = web.Distribution,
         });
     }
 }
