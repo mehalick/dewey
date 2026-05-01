@@ -1,0 +1,117 @@
+@page "/login"
+@using Dewey.Web.Auth
+@inject CognitoClient Cognito
+@inject AuthSession Session
+@inject NavigationManager Nav
+
+<PageTitle>Sign in - Dewey</PageTitle>
+
+<div class="container" style="max-width: 420px; margin-top: 4rem;">
+    <h1 class="mb-4">Sign in</h1>
+
+    @if (_step == Step.Email)
+    {
+        <EditForm Model="this" OnValidSubmit="StartAsync">
+            <div class="mb-3">
+                <label class="form-label">Email</label>
+                <input class="form-control" type="email" @bind="_email" required />
+            </div>
+            <button class="btn btn-primary" type="submit" disabled="@_busy">
+                @(_busy ? "Sending..." : "Send code")
+            </button>
+        </EditForm>
+    }
+    else
+    {
+        <p>Enter the 6-digit code sent to <strong>@_email</strong>.</p>
+        <p class="text-muted small">
+            Dev note: until SES is wired (M3+), the code is in CloudWatch logs of
+            the Cognito triggers Lambda.
+        </p>
+        <EditForm Model="this" OnValidSubmit="VerifyAsync">
+            <div class="mb-3">
+                <label class="form-label">Code</label>
+                <input class="form-control" inputmode="numeric" maxlength="6" @bind="_code" required />
+            </div>
+            <button class="btn btn-primary" type="submit" disabled="@_busy">
+                @(_busy ? "Verifying..." : "Sign in")
+            </button>
+            <button type="button" class="btn btn-link" @onclick="Reset">Use a different email</button>
+        </EditForm>
+    }
+
+    @if (!string.IsNullOrEmpty(_error))
+    {
+        <div class="alert alert-danger mt-3">@_error</div>
+    }
+</div>
+
+@code {
+    private enum Step { Email, Code }
+    private Step _step = Step.Email;
+    private string _email = "";
+    private string _code = "";
+    private string? _session;
+    private string? _error;
+    private bool _busy;
+
+    private async Task StartAsync()
+    {
+        _busy = true; _error = null;
+        try
+        {
+            // Best-effort signup; ignore "user already exists".
+            try
+            {
+                await Cognito.SignUpAsync(_email, CognitoClient.GenerateRandomPassword());
+            }
+            catch (CognitoException ex) when (ex.Message.Contains("UsernameExistsException"))
+            {
+                // expected on returning users
+            }
+
+            var res = await Cognito.InitiateCustomAuthAsync(_email);
+            _session = res.Session;
+            _step = Step.Code;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task VerifyAsync()
+    {
+        _busy = true; _error = null;
+        try
+        {
+            var res = await Cognito.RespondToCustomChallengeAsync(_email, _code, _session ?? "");
+            if (res.AuthenticationResult is { } auth)
+            {
+                await Session.SetAsync(new AuthTokens(
+                    auth.IdToken, auth.AccessToken, auth.RefreshToken ?? "", _email));
+                Nav.NavigateTo("/");
+            }
+            else
+            {
+                _session = res.Session;
+                _error = "Incorrect code, try again.";
+                _code = "";
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally { _busy = false; }
+    }
+
+    private void Reset()
+    {
+        _step = Step.Email;
+        _code = "";
+        _session = null;
+        _error = null;
+    }
+}

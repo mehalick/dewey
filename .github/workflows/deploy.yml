@@ -38,6 +38,12 @@ jobs:
             -c Release -r linux-arm64 --self-contained true \
             -o artifacts/api
 
+      - name: Publish AuthTriggers (AOT, linux-arm64)
+        run: |
+          dotnet publish src/Dewey.AuthTriggers/Dewey.AuthTriggers.csproj \
+            -c Release -r linux-arm64 --self-contained true \
+            -o artifacts/auth-triggers
+
       - name: Publish Web
         run: |
           dotnet publish src/Dewey.Web/Dewey.Web.csproj \
@@ -78,5 +84,6 @@ jobs:
         working-directory: src/Dewey.Infra
         env:
           DEWEY_API_PUBLISH_DIR: ${{ github.workspace }}/artifacts/api
+          DEWEY_AUTH_TRIGGERS_PUBLISH_DIR: ${{ github.workspace }}/artifacts/auth-triggers
           DEWEY_WEB_PUBLISH_DIR: ${{ github.workspace }}/artifacts/web-publish/wwwroot
         run: cdk deploy --all --require-approval never

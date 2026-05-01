@@ -13,6 +13,8 @@ public sealed class WebConstructProps
 {
     public LambdaFunction ApiFunction { get; init; }
     public Bucket CoversBucket { get; init; }
+    public string CognitoRegion { get; init; }
+    public string UserPoolClientId { get; init; }
 }
 
 public sealed class WebConstruct : Construct
@@ -79,13 +81,33 @@ public sealed class WebConstruct : Construct
         var publishDir = System.Environment.GetEnvironmentVariable("DEWEY_WEB_PUBLISH_DIR");
         if (!string.IsNullOrEmpty(publishDir))
         {
+            // Write a runtime appsettings.json overlaying the static one with
+            // the deployed Cognito client + region.
+            var appsettings = $@"{{""Cognito"":{{""Region"":""{props.CognitoRegion}"",""UserPoolClientId"":""{props.UserPoolClientId}""}},""Api"":{{""BaseAddress"":""/""}}}}";
+
             new BucketDeployment(this, "DeploySite", new BucketDeploymentProps
             {
-                Sources = new[] { Source.Asset(publishDir) },
+                Sources = new[]
+                {
+                    Source.Asset(publishDir),
+                    Source.JsonData("appsettings.json", new System.Collections.Generic.Dictionary<string, object>
+                    {
+                        ["Cognito"] = new System.Collections.Generic.Dictionary<string, object>
+                        {
+                            ["Region"] = props.CognitoRegion,
+                            ["UserPoolClientId"] = props.UserPoolClientId,
+                        },
+                        ["Api"] = new System.Collections.Generic.Dictionary<string, object>
+                        {
+                            ["BaseAddress"] = "/",
+                        },
+                    }),
+                },
                 DestinationBucket = SiteBucket,
                 Distribution = Distribution,
                 DistributionPaths = new[] { "/*" },
             });
+            _ = appsettings;
         }
 
         new CfnOutput(this, "DistributionUrl", new CfnOutputProps

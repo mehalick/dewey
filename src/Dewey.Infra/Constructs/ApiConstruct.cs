@@ -14,6 +14,7 @@ public sealed class ApiConstructProps
     public Table SessionsTable { get; init; }
     public Bucket CoversBucket { get; init; }
     public UserPool UserPool { get; init; }
+    public UserPoolClient UserPoolClient { get; init; }
 }
 
 public sealed class ApiConstruct : Construct
@@ -42,6 +43,8 @@ public sealed class ApiConstruct : Construct
             Environment = new System.Collections.Generic.Dictionary<string, string>
             {
                 ["DEWEY_USER_POOL_ID"] = props.UserPool.UserPoolId,
+                ["DEWEY_USER_POOL_CLIENT_ID"] = props.UserPoolClient.UserPoolClientId,
+                ["DEWEY_AWS_REGION"] = Stack.Of(this).Region,
                 ["DEWEY_USERS_TABLE"] = props.UsersTable.TableName,
                 ["DEWEY_BOOKS_TABLE"] = props.BooksTable.TableName,
                 ["DEWEY_SESSIONS_TABLE"] = props.SessionsTable.TableName,

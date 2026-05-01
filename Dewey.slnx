@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Dewey.Api/Dewey.Api.csproj" />
+    <Project Path="src/Dewey.AuthTriggers/Dewey.AuthTriggers.csproj" />
     <Project Path="src/Dewey.Infra/Dewey.Infra.csproj" />
     <Project Path="src/Dewey.Shared/Dewey.Shared.csproj" />
     <Project Path="src/Dewey.Web/Dewey.Web.csproj" />

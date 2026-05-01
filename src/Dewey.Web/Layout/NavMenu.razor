@@ -1,6 +1,11 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+@using Dewey.Web.Auth
+@inject AuthSession Session
+@inject NavigationManager Nav
+@implements IDisposable
+
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">Dewey.Web</a>
+        <a class="navbar-brand" href="">Dewey</a>
         <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
             <span class="navbar-toggler-icon"></span>
         </button>
@@ -14,16 +19,27 @@
                 <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
             </NavLink>
         </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
+        @if (Session.IsSignedIn)
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="me">
+                    <span class="bi bi-person-fill" aria-hidden="true"></span> Me
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <button class="nav-link btn btn-link text-start" @onclick="SignOutAsync">
+                    Sign out (@Session.Tokens?.Email)
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="login">
+                    <span class="bi bi-box-arrow-in-right" aria-hidden="true"></span> Sign in
+                </NavLink>
+            </div>
+        }
     </nav>
 </div>
 
@@ -32,8 +48,14 @@
 
     private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
 
-    private void ToggleNavMenu()
+    private void ToggleNavMenu() => collapseNavMenu = !collapseNavMenu;
+
+    protected override void OnInitialized() => Session.Changed += StateHasChanged;
+    public void Dispose() => Session.Changed -= StateHasChanged;
+
+    private async Task SignOutAsync()
     {
-        collapseNavMenu = !collapseNavMenu;
+        await Session.ClearAsync();
+        Nav.NavigateTo("/");
     }
 }

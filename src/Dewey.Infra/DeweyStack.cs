@@ -18,11 +18,14 @@ public sealed class DeweyStack : Stack
             SessionsTable = data.SessionsTable,
             CoversBucket = data.CoversBucket,
             UserPool = auth.UserPool,
+            UserPoolClient = auth.UserPoolClient,
         });
         new WebConstruct(this, "Web", new WebConstructProps
         {
             ApiFunction = api.Function,
             CoversBucket = data.CoversBucket,
+            CognitoRegion = Region,
+            UserPoolClientId = auth.UserPoolClient.UserPoolClientId,
         });
         new ObservabilityConstruct(this, "Observability", new ObservabilityConstructProps
         {

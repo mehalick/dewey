@@ -1,0 +1,50 @@
+@page "/me"
+@using System.Net.Http.Json
+@using Dewey.Shared.Contracts
+@using Dewey.Web.Auth
+@inject HttpClient Http
+@inject AuthSession Session
+@inject NavigationManager Nav
+
+<PageTitle>Me - Dewey</PageTitle>
+
+<h1>Me</h1>
+
+@if (!Session.IsSignedIn)
+{
+    <p>Not signed in.</p>
+    <a class="btn btn-primary" href="login">Sign in</a>
+}
+else if (_me is null && _error is null)
+{
+    <p>Loading…</p>
+}
+else if (_error is not null)
+{
+    <div class="alert alert-danger">@_error</div>
+}
+else
+{
+    <ul>
+        <li><strong>User id:</strong> @_me!.UserId</li>
+        <li><strong>Email:</strong> @_me.Email</li>
+    </ul>
+}
+
+@code {
+    private MeResponse? _me;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsSignedIn) return;
+        try
+        {
+            _me = await Http.GetFromJsonAsync<MeResponse>("api/me");
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+}
