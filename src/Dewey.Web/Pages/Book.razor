@@ -1,0 +1,69 @@
+@page "/book/{BookId}"
+@using System.Net.Http.Json
+@using Dewey.Shared.Contracts
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<PageTitle>@(_book?.Title ?? "Book") - Dewey</PageTitle>
+
+@if (_book is null && _error is null)
+{
+    <p>Loading…</p>
+}
+else if (_error is not null)
+{
+    <div class="alert alert-danger">@_error</div>
+}
+else
+{
+    <div class="d-flex gap-3">
+        @if (!string.IsNullOrEmpty(_book!.CoverUrl))
+        {
+            <img src="@_book.CoverUrl" alt="cover" style="width:160px; height:auto;" />
+        }
+        <div class="flex-grow-1">
+            <h1>@_book.Title</h1>
+            <p class="text-muted">@string.Join(", ", _book.Authors)</p>
+            @if (_book.PageCount is not null)
+            {
+                <p>@_book.PageCount pages</p>
+            }
+            <p>Progress: @_book.LatestProgressPct% — @_book.Status</p>
+            @if (_book.LatestSessionAt is not null)
+            {
+                <p class="text-muted small">Last activity: @_book.LatestSessionAt</p>
+            }
+            <p class="text-muted small">Sessions UI lands in M4.</p>
+        </div>
+    </div>
+
+    <hr />
+    <button class="btn btn-outline-danger" @onclick="DeleteAsync" disabled="@_deleting">
+        @(_deleting ? "Removing…" : "Remove from library")
+    </button>
+}
+
+@code {
+    [Parameter] public string BookId { get; set; } = "";
+    private BookSummary? _book;
+    private string? _error;
+    private bool _deleting;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _book = await Http.GetFromJsonAsync<BookSummary>($"api/books/{BookId}"); }
+        catch (Exception ex) { _error = ex.Message; }
+    }
+
+    private async Task DeleteAsync()
+    {
+        _deleting = true;
+        try
+        {
+            var res = await Http.DeleteAsync($"api/books/{BookId}");
+            res.EnsureSuccessStatusCode();
+            Nav.NavigateTo("/library");
+        }
+        catch (Exception ex) { _error = ex.Message; _deleting = false; }
+    }
+}

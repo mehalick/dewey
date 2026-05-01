@@ -1,8 +1,11 @@
 using System.Security.Claims;
 using System.Text.Json.Serialization;
+using Amazon.DynamoDBv2;
 using Amazon.Lambda.APIGatewayEvents;
 using Amazon.Lambda.AspNetCoreServer.Hosting;
 using Amazon.Lambda.Serialization.SystemTextJson;
+using Amazon.S3;
+using Dewey.Api.Books;
 using Dewey.Shared.Contracts;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -35,11 +38,16 @@ builder.Services
             ValidAudiences = [userPoolClientId],
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            // Cognito ID tokens have `aud` = clientId; access tokens have
-            // `client_id` instead. We accept ID tokens here.
         };
     });
 builder.Services.AddAuthorization();
+
+builder.Services.AddSingleton<IAmazonDynamoDB>(_ => new AmazonDynamoDBClient());
+builder.Services.AddSingleton<IAmazonS3>(_ => new AmazonS3Client());
+builder.Services.AddSingleton<BookRepository>();
+builder.Services.AddSingleton<CoverCache>();
+builder.Services.AddHttpClient<GoogleBooksClient>();
+builder.Services.AddHttpClient("covers");
 
 builder.Services.AddAWSLambdaHosting(
     LambdaEventSource.HttpApi,
@@ -59,10 +67,88 @@ app.MapGet("/api/me", (ClaimsPrincipal user) =>
     return Results.Ok(new MeResponse(sub ?? string.Empty, email));
 }).RequireAuthorization();
 
+var books = app.MapGroup("/api/books").RequireAuthorization();
+
+books.MapGet("/search", async (string q, GoogleBooksClient gb, CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(q)) return Results.Ok(Array.Empty<BookSearchResult>());
+    var results = await gb.SearchAsync(q, max: 10, ct);
+    return Results.Ok(results);
+});
+
+books.MapGet("/", async (ClaimsPrincipal user, BookRepository repo, CancellationToken ct) =>
+{
+    var userId = user.FindFirstValue("sub")!;
+    var list = await repo.ListAsync(userId, ct);
+    return Results.Ok(list);
+});
+
+books.MapPost("/", async (
+    AddBookRequest req,
+    ClaimsPrincipal user,
+    GoogleBooksClient gb,
+    CoverCache covers,
+    BookRepository repo,
+    CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(req.GoogleVolumeId))
+        return Results.BadRequest("googleVolumeId required");
+
+    var volume = await gb.GetVolumeAsync(req.GoogleVolumeId, ct);
+    if (volume is null) return Results.NotFound();
+
+    var sr = GoogleBooksClient.ToResult(volume);
+    var cachedCover = sr.CoverUrl is null ? null
+        : await covers.EnsureCachedAsync(sr.GoogleVolumeId, sr.CoverUrl, ct);
+
+    var userId = user.FindFirstValue("sub")!;
+    var book = new BookSummary(
+        BookId: Guid.NewGuid().ToString("N"),
+        GoogleVolumeId: sr.GoogleVolumeId,
+        Title: sr.Title,
+        Authors: sr.Authors,
+        PageCount: sr.PageCount,
+        CoverUrl: cachedCover ?? sr.CoverUrl,
+        AddedAt: DateTimeOffset.UtcNow.ToString("O"),
+        LatestProgressPct: 0,
+        LatestSessionAt: null,
+        Status: "not_started");
+
+    await repo.AddAsync(userId, book, ct);
+    return Results.Created($"/api/books/{book.BookId}", book);
+});
+
+books.MapGet("/{bookId}", async (
+    string bookId,
+    ClaimsPrincipal user,
+    BookRepository repo,
+    CancellationToken ct) =>
+{
+    var userId = user.FindFirstValue("sub")!;
+    var book = await repo.GetAsync(userId, bookId, ct);
+    return book is null ? Results.NotFound() : Results.Ok(book);
+});
+
+books.MapDelete("/{bookId}", async (
+    string bookId,
+    ClaimsPrincipal user,
+    BookRepository repo,
+    CancellationToken ct) =>
+{
+    var userId = user.FindFirstValue("sub")!;
+    var deleted = await repo.DeleteAsync(userId, bookId, ct);
+    return deleted ? Results.NoContent() : Results.NotFound();
+});
+
 app.Run();
 
 [JsonSerializable(typeof(HealthResponse))]
 [JsonSerializable(typeof(MeResponse))]
+[JsonSerializable(typeof(BookSearchResult))]
+[JsonSerializable(typeof(BookSearchResult[]))]
+[JsonSerializable(typeof(BookSummary))]
+[JsonSerializable(typeof(BookSummary[]))]
+[JsonSerializable(typeof(AddBookRequest))]
 internal partial class ApiJsonContext : JsonSerializerContext;
 
 [JsonSerializable(typeof(APIGatewayHttpApiV2ProxyRequest))]

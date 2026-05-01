@@ -15,6 +15,9 @@
     <PackageReference Include="Amazon.Lambda.RuntimeSupport" Version="1.13.1" />
     <PackageReference Include="Amazon.Lambda.Serialization.SystemTextJson" Version="2.4.4" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
+    <PackageReference Include="AWSSDK.DynamoDBv2" Version="4.0.8" />
+    <PackageReference Include="AWSSDK.S3" Version="4.0.11" />
+    <PackageReference Include="AWSSDK.Core" Version="4.0.4" />
   </ItemGroup>
 
   <ItemGroup>

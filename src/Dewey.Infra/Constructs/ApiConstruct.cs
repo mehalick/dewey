@@ -49,6 +49,7 @@ public sealed class ApiConstruct : Construct
                 ["DEWEY_BOOKS_TABLE"] = props.BooksTable.TableName,
                 ["DEWEY_SESSIONS_TABLE"] = props.SessionsTable.TableName,
                 ["DEWEY_COVERS_BUCKET"] = props.CoversBucket.BucketName,
+                ["DEWEY_GOOGLE_BOOKS_KEY"] = System.Environment.GetEnvironmentVariable("DEWEY_GOOGLE_BOOKS_KEY") ?? "",
             },
         });
 

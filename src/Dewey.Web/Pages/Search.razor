@@ -1,0 +1,90 @@
+@page "/search"
+@using System.Net.Http.Json
+@using Dewey.Shared.Contracts
+@using Dewey.Web.Auth
+@inject HttpClient Http
+@inject AuthSession Session
+@inject NavigationManager Nav
+
+<PageTitle>Search - Dewey</PageTitle>
+
+<h1>Search books</h1>
+
+@if (!Session.IsSignedIn)
+{
+    <p>Please <a href="login">sign in</a> to add books.</p>
+    return;
+}
+
+<EditForm Model="this" OnValidSubmit="DoSearchAsync" class="mb-3">
+    <div class="input-group">
+        <input class="form-control" placeholder="Title, author, ISBN…" @bind="_query" @bind:event="oninput" />
+        <button class="btn btn-primary" type="submit" disabled="@_busy">
+            @(_busy ? "Searching…" : "Search")
+        </button>
+    </div>
+</EditForm>
+
+@if (_error is not null)
+{
+    <div class="alert alert-danger">@_error</div>
+}
+
+@if (_results is not null)
+{
+    <ul class="list-group">
+        @foreach (var r in _results)
+        {
+            <li class="list-group-item d-flex gap-3 align-items-start">
+                @if (!string.IsNullOrEmpty(r.CoverUrl))
+                {
+                    <img src="@r.CoverUrl" alt="cover" style="width:60px; height:auto;" />
+                }
+                <div class="flex-grow-1">
+                    <div><strong>@r.Title</strong></div>
+                    <div class="text-muted small">@string.Join(", ", r.Authors)</div>
+                    @if (r.PageCount is not null)
+                    {
+                        <div class="text-muted small">@r.PageCount pages</div>
+                    }
+                </div>
+                <button class="btn btn-sm btn-outline-primary" @onclick="() => AddAsync(r)" disabled="@(_adding == r.GoogleVolumeId)">
+                    @(_adding == r.GoogleVolumeId ? "Adding…" : "Add")
+                </button>
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    private string _query = "";
+    private bool _busy;
+    private string? _error;
+    private string? _adding;
+    private BookSearchResult[]? _results;
+
+    private async Task DoSearchAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_query)) return;
+        _busy = true; _error = null;
+        try
+        {
+            _results = await Http.GetFromJsonAsync<BookSearchResult[]>($"api/books/search?q={Uri.EscapeDataString(_query)}");
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _busy = false; }
+    }
+
+    private async Task AddAsync(BookSearchResult r)
+    {
+        _adding = r.GoogleVolumeId; _error = null;
+        try
+        {
+            var res = await Http.PostAsJsonAsync("api/books", new AddBookRequest(r.GoogleVolumeId));
+            res.EnsureSuccessStatusCode();
+            Nav.NavigateTo("/library");
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _adding = null; }
+    }
+}

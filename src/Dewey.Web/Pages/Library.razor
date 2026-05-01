@@ -1,0 +1,67 @@
+@page "/library"
+@using System.Net.Http.Json
+@using Dewey.Shared.Contracts
+@using Dewey.Web.Auth
+@inject HttpClient Http
+@inject AuthSession Session
+
+<PageTitle>Library - Dewey</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="m-0">Library</h1>
+    <a class="btn btn-primary" href="search">Add a book</a>
+</div>
+
+@if (!Session.IsSignedIn)
+{
+    <p>Please <a href="login">sign in</a>.</p>
+    return;
+}
+
+@if (_books is null && _error is null)
+{
+    <p>Loading…</p>
+}
+else if (_error is not null)
+{
+    <div class="alert alert-danger">@_error</div>
+}
+else if (_books!.Length == 0)
+{
+    <p>No books yet. <a href="search">Search to add one.</a></p>
+}
+else
+{
+    <div class="row row-cols-1 row-cols-md-3 g-3">
+        @foreach (var b in _books)
+        {
+            <div class="col">
+                <a class="card h-100 text-decoration-none text-reset" href="@($"book/{b.BookId}")">
+                    <div class="card-body d-flex gap-3">
+                        @if (!string.IsNullOrEmpty(b.CoverUrl))
+                        {
+                            <img src="@b.CoverUrl" alt="cover" style="width:80px; height:auto;" />
+                        }
+                        <div>
+                            <div class="fw-bold">@b.Title</div>
+                            <div class="text-muted small">@string.Join(", ", b.Authors)</div>
+                            <div class="text-muted small">@b.LatestProgressPct% — @b.Status</div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private BookSummary[]? _books;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsSignedIn) return;
+        try { _books = await Http.GetFromJsonAsync<BookSummary[]>("api/books"); }
+        catch (Exception ex) { _error = ex.Message; }
+    }
+}
