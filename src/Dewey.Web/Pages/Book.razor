@@ -1,8 +1,11 @@
 @page "/book/{BookId}"
 @using System.Net.Http.Json
 @using Dewey.Shared.Contracts
+@using Dewey.Web.Offline
 @inject HttpClient Http
 @inject NavigationManager Nav
+@inject ApiCache Cache
+@inject Outbox Outbox
 
 <PageTitle>@(_book?.Title ?? "Book") - Dewey</PageTitle>
 
@@ -75,7 +78,7 @@ else
     {
         try
         {
-            _book = await Http.GetFromJsonAsync<BookSummary>($"api/books/{BookId}");
+            _book = await Cache.GetAsync<BookSummary>($"api/books/{BookId}");
             _progressPct = _book?.LatestProgressPct ?? 0;
         }
         catch (Exception ex) { _error = ex.Message; }
@@ -91,8 +94,9 @@ else
                 Type: type,
                 ProgressPct: Math.Clamp(_progressPct, 0, 100),
                 OccurredAt: DateTimeOffset.UtcNow.ToString("O"));
-            var res = await Http.PostAsJsonAsync($"api/books/{BookId}/sessions", req);
-            res.EnsureSuccessStatusCode();
+            // Always go through the outbox: enqueue then attempt immediate flush.
+            // Offline => stays queued, banner shows pending count.
+            await Outbox.EnqueueAsync($"api/books/{BookId}/sessions", req);
             await LoadAsync();
         }
         catch (Exception ex) { _error = ex.Message; }

@@ -1,11 +1,26 @@
-﻿@inherits LayoutComponentBase
+@using Dewey.Web.Offline
+@inherits LayoutComponentBase
+@inject OnlineMonitor Monitor
+@inject Outbox Outbox
+@implements IDisposable
+
 <div class="page">
     <div class="sidebar">
         <NavMenu />
     </div>
 
     <main>
-        <div class="top-row px-4">
+        <div class="top-row px-4 d-flex justify-content-between align-items-center">
+            <span>
+                @if (!Monitor.IsOnline)
+                {
+                    <span class="badge bg-warning text-dark">Offline</span>
+                }
+                @if (Outbox.PendingCount > 0)
+                {
+                    <span class="badge bg-info ms-2">@Outbox.PendingCount pending</span>
+                }
+            </span>
             <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
         </div>
 
@@ -14,3 +29,20 @@
         </article>
     </main>
 </div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Monitor.Changed += OnMonitorChanged;
+        Outbox.Changed += OnOutboxChanged;
+    }
+
+    private void OnMonitorChanged(bool _) => InvokeAsync(StateHasChanged);
+    private void OnOutboxChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Monitor.Changed -= OnMonitorChanged;
+        Outbox.Changed -= OnOutboxChanged;
+    }
+}

@@ -2,8 +2,10 @@
 @using System.Net.Http.Json
 @using Dewey.Shared.Contracts
 @using Dewey.Web.Auth
+@using Dewey.Web.Offline
 @inject HttpClient Http
 @inject AuthSession Session
+@inject ApiCache Cache
 
 <PageTitle>Library - Dewey</PageTitle>
 
@@ -61,7 +63,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         if (!Session.IsSignedIn) return;
-        try { _books = await Http.GetFromJsonAsync<BookSummary[]>("api/books"); }
+        try { _books = await Cache.GetAsync<BookSummary[]>("api/books") ?? []; }
         catch (Exception ex) { _error = ex.Message; }
     }
 }
