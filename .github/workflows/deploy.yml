@@ -81,6 +81,13 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 'lts/*'
+
+      - name: Upgrade npm
+        run: npm install -g npm@latest
+
       - name: Install CDK
         run: npm install -g aws-cdk@2
 
