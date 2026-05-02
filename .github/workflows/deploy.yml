@@ -15,7 +15,11 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Native arm64 runner: AOT publish targeting linux-arm64 needs a matching
+    # linker. On x64 runners the toolchain only knows x86_64 emulations, so
+    # the native-code link step fails ("unrecognised emulation mode:
+    # aarch64linux"). The arm64 runner has the right ld + clang.
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v6
 
