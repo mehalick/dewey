@@ -161,24 +161,43 @@ public sealed class ObservabilityConstruct : Construct
         },
     });
 
-    private static GraphWidget DdbWidget(string title, Table t) => new(new GraphWidgetProps
+    private static GraphWidget DdbWidget(string title, Table t)
     {
-        Title = $"DDB — {title}",
-        Width = 12,
-        Left = new[]
+        // SuccessfulRequestLatency requires a single Operation dimension per
+        // metric, so we emit one metric per operation rather than aggregating.
+        var latencyOps = new[]
         {
-            t.MetricConsumedReadCapacityUnits(),
-            t.MetricConsumedWriteCapacityUnits(),
-        },
-        Right = new[]
-        {
-            t.MetricSuccessfulRequestLatency(new OperationsMetricOptions
+            Operation.GET_ITEM, Operation.QUERY, Operation.PUT_ITEM,
+            Operation.UPDATE_ITEM, Operation.TRANSACT_WRITE_ITEMS,
+        };
+        var latencyMetrics = latencyOps
+            .Select(op => (IMetric)new Metric(new MetricProps
             {
-                Operations = new[] { Operation.GET_ITEM, Operation.QUERY, Operation.PUT_ITEM, Operation.UPDATE_ITEM, Operation.TRANSACT_WRITE_ITEMS },
+                Namespace = "AWS/DynamoDB",
+                MetricName = "SuccessfulRequestLatency",
+                DimensionsMap = new System.Collections.Generic.Dictionary<string, string>
+                {
+                    ["TableName"] = t.TableName,
+                    ["Operation"] = op.ToString(),
+                },
                 Statistic = "p99",
-            }),
-        },
-    });
+                Period = Duration.Minutes(5),
+                Label = op.ToString(),
+            }))
+            .ToArray();
+
+        return new GraphWidget(new GraphWidgetProps
+        {
+            Title = $"DDB — {title}",
+            Width = 12,
+            Left = new[]
+            {
+                t.MetricConsumedReadCapacityUnits(),
+                t.MetricConsumedWriteCapacityUnits(),
+            },
+            Right = latencyMetrics,
+        });
+    }
 
     private static GraphWidget CloudFrontWidget(Distribution d) => new(new GraphWidgetProps
     {
