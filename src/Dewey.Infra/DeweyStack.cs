@@ -23,6 +23,7 @@ public sealed class DeweyStack : Stack
         var web = new WebConstruct(this, "Web", new WebConstructProps
         {
             ApiFunction = api.Function,
+            ApiFunctionUrl = api.FunctionUrl,
             CoversBucket = data.CoversBucket,
             CognitoRegion = Region,
             UserPoolClientId = auth.UserPoolClient.UserPoolClientId,

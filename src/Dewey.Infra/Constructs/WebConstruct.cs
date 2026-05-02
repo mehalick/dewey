@@ -12,6 +12,7 @@ namespace Dewey.Infra.Constructs;
 public sealed class WebConstructProps
 {
     public LambdaFunction ApiFunction { get; init; }
+    public FunctionUrl ApiFunctionUrl { get; init; }
     public Bucket CoversBucket { get; init; }
     public string CognitoRegion { get; init; }
     public string UserPoolClientId { get; init; }
@@ -31,10 +32,7 @@ public sealed class WebConstruct : Construct
             RemovalPolicy = RemovalPolicy.RETAIN,
         });
 
-        var apiOrigin = new FunctionUrlOrigin(props.ApiFunction.AddFunctionUrl(new FunctionUrlOptions
-        {
-            AuthType = FunctionUrlAuthType.NONE,
-        }));
+        var apiOrigin = new FunctionUrlOrigin(props.ApiFunctionUrl);
 
         Distribution = new Distribution(this, "Cdn", new DistributionProps
         {
